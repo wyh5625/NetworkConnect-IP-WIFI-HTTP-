@@ -1,11 +1,16 @@
+import sys
 import ipcalc
-import httplib
 import socket
 import subprocess
-import sys
 import ssl
 
-port = 44300
+if sys.version_info > (3,0):
+    import http.client as client
+else:
+    import httplib as client
+
+
+port = 44301
 
 def get_ip_and_mask_win():
     proc = subprocess.Popen('ipconfig',stdout=subprocess.PIPE)
@@ -39,9 +44,11 @@ if __name__ == '__main__':
     elif 'linux' in platform:
         first_ip, mask = get_ip_and_mask_linux()
     subnet = subnet_cal(mask)
-    # context = ssl.create_default_context()
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
     for x in ipcalc.Network(first_ip+'/'+str(subnet)):
-        conn = httplib.HTTPConnection(str(x), port, timeout=0.01)
+        conn = client.HTTPSConnection(str(x), port, timeout=0.1, context=context)
         if conn is not None:
             try:
                 conn.request("GET", "/")
@@ -49,7 +56,7 @@ if __name__ == '__main__':
                 print(x, r1.status, r1.reason)
                 data = r1.read()
                 print(data)
-            except httplib.HTTPException as e:
+            except client.HTTPException as e:
                 print(x, e)
             except socket.timeout as e:
                 print(x, e)
